@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const bcrypt = require('bcrypt');
@@ -8,10 +9,15 @@ const userModel = require('./models/user-model');
 const mailModel = require('./models/mail-model');
 const logModel = require("./models/log-model");
 const draftModel = require('./models/draf-model');
-
+// const bodyParser = require('body-parser');
+const otpGenerator = require('otp-generator');
+const otpSchema = require('./models/otp-schema');
+const nodeMailer = require('nodemailer')
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(cors())
+// app.use(bodyParser().json())
 
 function isLoggedIn(req, res, next) {
     const token = req.cookies.token;
@@ -77,7 +83,7 @@ app.get("/email/simulate/:id", isLoggedIn, async (req, res) => {
     try {
         const mail = await mailModel.findOne({
             _id: req.params.id,
-            user: req.user._id   
+            user: req.user._id
         });
 
         if (!mail) return res.status(404).send("Email not found");
@@ -88,12 +94,12 @@ app.get("/email/simulate/:id", isLoggedIn, async (req, res) => {
     }
 });
 
-app.post("/email/simulate",isLoggedIn,async (req,res)=>{
-    const {to ,cc,bcc,from,subject,body } = req.body;
-    let user = await userModel.findOne({email : req.user.email});
+app.post("/email/simulate", isLoggedIn, async (req, res) => {
+    const { to, cc, bcc, from, subject, body } = req.body;
+    let user = await userModel.findOne({ email: req.user.email });
     let mails = await mailModel.create({
-        user : user._id,
-        to,cc,bcc,from,subject,body
+        user: user._id,
+        to, cc, bcc, from, subject, body
     })
     user.mails.push(user._id);
     await user.save();
@@ -144,7 +150,7 @@ app.get("/email/drafts", isLoggedIn, async (req, res) => {
 });
 
 app.post("/email/draft/save", isLoggedIn, async (req, res) => {
-    
+
     try {
         const { draftId, to, cc, bcc, from, subject, body } = req.body;
         let draft;
@@ -157,7 +163,7 @@ app.post("/email/draft/save", isLoggedIn, async (req, res) => {
             );
             // res.send(draft)
         } else {
-            
+
             draft = await draftModel.create({
                 user: req.user._id,
                 to,
@@ -186,7 +192,50 @@ app.delete("/email/draft/:id", isLoggedIn, async (req, res) => {
         res.status(500).send("Error deleting draft");
     }
 });
-``
+// -----------otp-verification-------------
+
+app.post('/generate-otp', async (req, res) => {
+    const { email } = req.body;
+    const otp = otpGenerator.generate(6, { digits: true, lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
+
+    try {
+        await otpSchema.create({ email, otp })
+
+        const transporter = nodeMailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+        await transporter.sendMail({
+            from: 'amanmonga000@gmail.com',
+            to: email,
+            subject: 'OTP Verification',
+            text: `Your OTP for verification is: ${otp}`
+        })
+        res.status(200).send('OTP sent successfully',otp);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error sending OTP');
+    }
+})
+app.post("/verify-otp",async (req,res)=>{
+    const {email, otp} = req.body;
+    try {
+        const otpRecord = await otpSchema.findOne({ email, otp }).exec();
+
+        if (otpRecord) {
+            res.status(200).send('OTP verified successfully');
+        } else {
+            res.status(400).send('Invalid OTP');
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error verifying OTP');
+    }
+
+})
 app.listen(3000, () => {
     console.log("server is running good....");
 
