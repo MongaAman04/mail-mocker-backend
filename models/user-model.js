@@ -1,16 +1,37 @@
-const mongoose = require('mongoose');
-mongoose.connect('mongodb://127.0.0.1:27017/mailmocker');
+import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
-const UserSchema = mongoose.Schema({
+const UserSchema = new mongoose.Schema({
     username: String,
-    email: String,
-    password: String,
+    email: {
+        type: String,
+        unique: true,
+        required: true
+    },
+    password: {
+        type: String,
+        select: false
+    },
     mails: [
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'mail'
         }
     ]
-})
+});
 
-module.exports = mongoose.model('user', UserSchema)
+
+UserSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) return next();
+
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+const User = mongoose.model('user', UserSchema);
+export default User;

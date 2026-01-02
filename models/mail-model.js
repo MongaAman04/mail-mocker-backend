@@ -1,9 +1,9 @@
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
 
 const MailSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "user",
+    ref: 'user',
     required: true
   },
   date: {
@@ -11,7 +11,7 @@ const MailSchema = new mongoose.Schema({
     default: Date.now
   },
   to: {
-    type: [String],  
+    type: [String],
     default: []
   },
   cc: {
@@ -28,13 +28,15 @@ const MailSchema = new mongoose.Schema({
   },
   subject: {
     type: String,
-    default: ""
+    default: ''
   },
   body: {
     type: String,
-    default: ""
+    default: ''
   }
+}, {
+  timestamps: true
 });
 
-
-module.exports = mongoose.model("mail", MailSchema);
+const Mail = mongoose.model('mail', MailSchema);
+export default Mail;

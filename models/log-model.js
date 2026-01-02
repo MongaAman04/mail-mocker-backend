@@ -1,5 +1,4 @@
-const mongoose = require("mongoose");
-
+import mongoose from 'mongoose';
 const logSchema = new mongoose.Schema({
     simulationId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -13,4 +12,5 @@ const logSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model("log", logSchema);
+const Log = mongoose.model("log", logSchema);
+export default Log
